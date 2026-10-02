@@ -1,6 +1,14 @@
 #!/bin/bash
 # speak - Convert text to speech using Piper TTS (neural, high quality, offline)
 #
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 Renato Vasconcellos Gomes
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 2 of the License, or (at your option) any later
+# version. See the LICENSE file for the full text.
+#
 # Usage:
 #   speak "Hello world"
 #   echo "Hello world" | speak
@@ -12,11 +20,12 @@
 #
 # Voices:
 #   us (default) | br  (aliases), or any model filename (without .onnx) that
-#   exists in the voices directory.
+#   exists in the voices directory. A voice name may not contain a path
+#   separator or "..": models are always resolved inside the voices directory.
 #
-# This script is part of the "narrate" Kiro power and has no dependencies on
-# any particular project. It shells out to the `piper` binary and plays the
-# result with `aplay` (Linux/ALSA) or `afplay` (macOS).
+# Part of the "narrate" Kiro power. No dependency on any particular project.
+# Shells out to the `piper` binary and plays the result with `aplay`
+# (Linux/ALSA) or `afplay` (macOS).
 
 set -euo pipefail
 
@@ -25,29 +34,68 @@ SPEED="0.6"   # Default: fast pace
 VOICE="us"
 
 usage() {
-    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+    cat >&2 <<'EOF'
+speak - local, offline text-to-speech via Piper
+
+Usage:
+  speak [options] "text to speak"
+  echo "text" | speak [options]
+
+Options:
+  -s, --speed N    Length scale, lower = faster (default 0.6; e.g. 0.4 fast, 1.0 slow)
+  -v, --voice NAME Voice alias (us|en, br|pt) or a model filename without .onnx
+  -h, --help       Show this help
+
+Voice models live in $PIPER_VOICES_DIR (default ~/.local/share/piper-voices).
+EOF
     exit "${1:-0}"
 }
 
-# Voice aliases -> model path.
+# Resolve a voice name/alias to a model path, confined to $VOICES_DIR.
 get_model() {
+    local name="$1"
+    case "$name" in
+        us|en) name="en_US-amy-medium" ;;
+        br|pt) name="pt_BR-faber-medium" ;;
+    esac
+    # Reject path traversal: a voice name is a bare filename, never a path.
+    case "$name" in
+        */*|*..*|"")
+            echo "Error: invalid voice name '$1' (no path separators or '..')." >&2
+            exit 2
+            ;;
+    esac
+    printf '%s/%s.onnx' "$VOICES_DIR" "$name"
+}
+
+# Validate speed is a non-negative number (integer or decimal).
+valid_speed() {
     case "$1" in
-        us|en) echo "$VOICES_DIR/en_US-amy-medium.onnx" ;;
-        br|pt) echo "$VOICES_DIR/pt_BR-faber-medium.onnx" ;;
-        *)     echo "$VOICES_DIR/$1.onnx" ;;
+        ''|*[!0-9.]*) return 1 ;;
+        *.*.*)        return 1 ;;  # more than one dot
+        *)            return 0 ;;
     esac
 }
 
 # Parse flags.
 while [[ "${1:-}" == -* ]]; do
     case "$1" in
-        -s|--speed) SPEED="${2:?-s needs a value}"; shift 2 ;;
-        -v|--voice) VOICE="${2:?-v needs a value}"; shift 2 ;;
-        -h|--help)  usage 0 ;;
-        --)         shift; break ;;
-        *)          echo "Unknown flag: $1" >&2; usage 1 ;;
+        -s|--speed)
+            [ "$#" -ge 2 ] || { echo "Error: $1 needs a value." >&2; usage 1; }
+            SPEED="$2"; shift 2 ;;
+        -v|--voice)
+            [ "$#" -ge 2 ] || { echo "Error: $1 needs a value." >&2; usage 1; }
+            VOICE="$2"; shift 2 ;;
+        -h|--help) usage 0 ;;
+        --)        shift; break ;;
+        *)         echo "Error: unknown flag '$1'." >&2; usage 1 ;;
     esac
 done
+
+if ! valid_speed "$SPEED"; then
+    echo "Error: --speed must be a non-negative number (got '$SPEED')." >&2
+    exit 2
+fi
 
 if ! command -v piper >/dev/null 2>&1; then
     echo "Error: 'piper' not found. Install with: uv tool install piper-tts" >&2
@@ -63,7 +111,7 @@ if [ ! -f "$MODEL" ]; then
     exit 1
 fi
 
-# Pick a player.
+# Pick a player (afplay has no quiet flag; aplay does).
 if command -v aplay >/dev/null 2>&1; then
     PLAYER=(aplay -q)
 elif command -v afplay >/dev/null 2>&1; then
@@ -73,15 +121,22 @@ else
     exit 127
 fi
 
-TMPFILE="$(mktemp "${TMPDIR:-/tmp}/speak-XXXXXX.wav")"
-cleanup() { rm -f "$TMPFILE"; }
+TMPFILE="$(mktemp "${TMPDIR:-/tmp}/speak-XXXXXX")"
+# Piper writes WAV; keep a .wav path so players sniff the format reliably.
+WAVFILE="$TMPFILE.wav"
+cleanup() { rm -f "$TMPFILE" "$WAVFILE"; }
 trap cleanup EXIT
 
-# Text comes from args, or stdin when no args are given.
+# Synthesize. Text comes from args, or stdin when no args are given.
+# Do not silence piper's errors — a failed synthesis should be visible.
 if [ "$#" -gt 0 ]; then
-    printf '%s' "$*" | piper --model "$MODEL" --length-scale "$SPEED" --output_file "$TMPFILE" 2>/dev/null
+    printf '%s' "$*" | piper --model "$MODEL" --length-scale "$SPEED" --output_file "$WAVFILE"
 else
-    piper --model "$MODEL" --length-scale "$SPEED" --output_file "$TMPFILE" 2>/dev/null
+    piper --model "$MODEL" --length-scale "$SPEED" --output_file "$WAVFILE"
 fi
 
-"${PLAYER[@]}" "$TMPFILE" 2>/dev/null || true
+# Play. Report a real failure instead of silently "succeeding".
+if ! "${PLAYER[@]}" "$WAVFILE"; then
+    echo "Error: playback failed (no audio device? check 'aplay -l')." >&2
+    exit 1
+fi
