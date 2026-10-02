@@ -1,0 +1,26 @@
+# Audio / temp artifacts
+*.wav
+speak-*.wav
+
+# Voice models should not be vendored into the repo (large binaries)
+*.onnx
+*.onnx.json
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*~
+.idea/
+.vscode/
+
+# Secrets — this power needs none, but belt-and-suspenders
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.*

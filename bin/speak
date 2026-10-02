@@ -1,0 +1,87 @@
+#!/bin/bash
+# speak - Convert text to speech using Piper TTS (neural, high quality, offline)
+#
+# Usage:
+#   speak "Hello world"
+#   echo "Hello world" | speak
+#   speak -s 0.4 "Very fast"
+#   speak -v br "Olá mundo"
+#
+# Speed (--length-scale, lower = faster):
+#   1.0 = slow/original, 0.8 = natural, 0.6 = fast (default), 0.4 = very fast
+#
+# Voices:
+#   us (default) | br  (aliases), or any model filename (without .onnx) that
+#   exists in the voices directory.
+#
+# This script is part of the "narrate" Kiro power and has no dependencies on
+# any particular project. It shells out to the `piper` binary and plays the
+# result with `aplay` (Linux/ALSA) or `afplay` (macOS).
+
+set -euo pipefail
+
+VOICES_DIR="${PIPER_VOICES_DIR:-$HOME/.local/share/piper-voices}"
+SPEED="0.6"   # Default: fast pace
+VOICE="us"
+
+usage() {
+    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+    exit "${1:-0}"
+}
+
+# Voice aliases -> model path.
+get_model() {
+    case "$1" in
+        us|en) echo "$VOICES_DIR/en_US-amy-medium.onnx" ;;
+        br|pt) echo "$VOICES_DIR/pt_BR-faber-medium.onnx" ;;
+        *)     echo "$VOICES_DIR/$1.onnx" ;;
+    esac
+}
+
+# Parse flags.
+while [[ "${1:-}" == -* ]]; do
+    case "$1" in
+        -s|--speed) SPEED="${2:?-s needs a value}"; shift 2 ;;
+        -v|--voice) VOICE="${2:?-v needs a value}"; shift 2 ;;
+        -h|--help)  usage 0 ;;
+        --)         shift; break ;;
+        *)          echo "Unknown flag: $1" >&2; usage 1 ;;
+    esac
+done
+
+if ! command -v piper >/dev/null 2>&1; then
+    echo "Error: 'piper' not found. Install with: uv tool install piper-tts" >&2
+    exit 127
+fi
+
+MODEL="$(get_model "$VOICE")"
+if [ ! -f "$MODEL" ]; then
+    echo "Error: voice model not found: $MODEL" >&2
+    echo "Available voices in $VOICES_DIR:" >&2
+    ls "$VOICES_DIR"/*.onnx 2>/dev/null | sed 's#.*/#  #;s#\.onnx$##' >&2 || echo "  (none)" >&2
+    echo "Download voices from https://huggingface.co/rhasspy/piper-voices" >&2
+    exit 1
+fi
+
+# Pick a player.
+if command -v aplay >/dev/null 2>&1; then
+    PLAYER=(aplay -q)
+elif command -v afplay >/dev/null 2>&1; then
+    PLAYER=(afplay)   # macOS
+else
+    echo "Error: no audio player found (need 'aplay' or 'afplay')." >&2
+    exit 127
+fi
+
+TMPFILE="$(mktemp "${TMPDIR:-/tmp}/speak-XXXXXX.wav")"
+cleanup() { rm -f "$TMPFILE"; }
+trap cleanup EXIT
+
+# Text comes from args, or stdin when no args are given.
+if [ "$#" -gt 0 ]; then
+    printf '%s' "$*" | piper --model "$MODEL" --length-scale "$SPEED" --output_file "$TMPFILE" 2>/dev/null
+else
+    piper --model "$MODEL" --length-scale "$SPEED" --output_file "$TMPFILE" 2>/dev/null
+fi
+
+"${PLAYER[@]}" "$TMPFILE" 2>/dev/null || true
