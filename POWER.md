@@ -10,9 +10,11 @@ author: "Renato Vasconcellos Gomes"
 
 ## Overview
 
-This power bundles three skills around one idea: turning dense engineering
+This power bundles four skills around one idea: turning dense engineering
 context into a clear narrative — in text, or spoken aloud through a fully
-offline text-to-speech engine (Piper).
+offline text-to-speech engine (Piper). Three are user-facing (`explain`,
+`explain-audio`, `speak`); the fourth (`explain-branch`) is the shared
+procedure the two explain skills call.
 
 **Key capabilities:**
 

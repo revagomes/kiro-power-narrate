@@ -99,17 +99,28 @@ in `~/.local/share/piper-voices/` (override the directory with
 
 ## Adding New Voices
 
-Download from the Piper voices repository on HuggingFace:
+The bundled installer (`install.sh`) can fetch the `en` and `pt` voices,
+pinned to an immutable upstream release tag and checksum-verified. To add
+another voice manually, download it from a **pinned release tag** (not the
+moving `main` branch) and verify its checksum before use:
 
 ```bash
 cd ~/.local/share/piper-voices
-BASE="https://huggingface.co/rhasspy/piper-voices/resolve/main"
-curl -fsSL "$BASE/<lang>/<locale>/<name>/<quality>/<locale>-<name>-<quality>.onnx"      -o "<locale>-<name>-<quality>.onnx"
-curl -fsSL "$BASE/<lang>/<locale>/<name>/<quality>/<locale>-<name>-<quality>.onnx.json" -o "<locale>-<name>-<quality>.onnx.json"
+# Pin to an immutable tag so the file can't change under you.
+BASE="https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0"
+V="<locale>-<name>-<quality>"
+curl -fsSL --proto '=https' --tlsv1.2 "$BASE/<lang>/<locale>/<name>/<quality>/$V.onnx"      -o "$V.onnx"
+curl -fsSL --proto '=https' --tlsv1.2 "$BASE/<lang>/<locale>/<name>/<quality>/$V.onnx.json" -o "$V.onnx.json"
+
+# Verify integrity: compare against the SHA256 shown in the file's Git-LFS
+# pointer (the `oid sha256:` line at .../raw/v1.0.0/<path>/$V.onnx).
+sha256sum "$V.onnx"   # or: shasum -a 256 "$V.onnx"
 ```
 
-Then reference it by its filename, or add an alias in the `get_model()` function
-in `~/.local/bin/speak`. Browse voices: https://huggingface.co/rhasspy/piper-voices
+A model is loaded by a native inference engine, so only install voices whose
+checksum you have verified. Then reference the voice by its filename, or add an
+alias in the `get_model()` function in `~/.local/bin/speak`.
+Browse voices: https://huggingface.co/rhasspy/piper-voices
 
 ## Best Practices for AI Agents
 
