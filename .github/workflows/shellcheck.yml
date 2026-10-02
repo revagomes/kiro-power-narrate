@@ -1,0 +1,45 @@
+name: lint
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Lint shell scripts
+        run: shellcheck bin/speak install.sh
+
+      - name: Syntax check
+        run: |
+          bash -n bin/speak
+          bash -n install.sh
+
+  manifest:
+    name: Validate plugin.json
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Agent Plugins manifest
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open("plugin.json"))
+          allowed = {"$schema","name","version","description","author",
+                     "homepage","repository","license","keywords","extensions"}
+          keys = set(d)
+          assert {"$schema","name"} <= keys, "missing required $schema/name"
+          extra = keys - allowed
+          assert not extra, f"unknown top-level fields: {sorted(extra)}"
+          print("plugin.json OK:", sorted(keys))
+          PY
