@@ -146,7 +146,12 @@ fi
 
 # 4. Voice model.
 mkdir -p "$VOICES_DIR"
-if ls "$VOICES_DIR"/*.onnx >/dev/null 2>&1; then
+# Does the voices dir contain at least one model? (glob, not ls — SC2012-safe)
+have_voice=0
+for _f in "$VOICES_DIR"/*.onnx; do
+    [ -e "$_f" ] && { have_voice=1; break; }
+done
+if [ "$have_voice" -eq 1 ]; then
     ok "Voice model(s) already present in $VOICES_DIR"
 else
     warn "No voice models found in $VOICES_DIR"

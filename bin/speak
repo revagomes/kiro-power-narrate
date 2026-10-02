@@ -106,7 +106,13 @@ MODEL="$(get_model "$VOICE")"
 if [ ! -f "$MODEL" ]; then
     echo "Error: voice model not found: $MODEL" >&2
     echo "Available voices in $VOICES_DIR:" >&2
-    ls "$VOICES_DIR"/*.onnx 2>/dev/null | sed 's#.*/#  #;s#\.onnx$##' >&2 || echo "  (none)" >&2
+    found=0
+    for f in "$VOICES_DIR"/*.onnx; do
+        [ -e "$f" ] || continue
+        name="${f##*/}"; printf '  %s\n' "${name%.onnx}" >&2
+        found=1
+    done
+    [ "$found" -eq 1 ] || echo "  (none)" >&2
     echo "Download voices from https://huggingface.co/rhasspy/piper-voices" >&2
     exit 1
 fi
