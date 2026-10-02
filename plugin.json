@@ -1,0 +1,25 @@
+{
+  "$schema": "https://agent-plugins.org/schema/1.0.0/plugin.json",
+  "name": "narrate",
+  "version": "1.0.0",
+  "description": "Explain a git feature branch's full story (why/what/how) as text or spoken aloud via a local, offline Piper text-to-speech engine. Includes general-purpose local TTS.",
+  "author": {
+    "name": "Renato Vasconcellos Gomes"
+  },
+  "homepage": "https://github.com/revagomes/kiro-power-narrate",
+  "repository": "https://github.com/revagomes/kiro-power-narrate",
+  "license": "GPL-2.0-or-later",
+  "keywords": [
+    "explain",
+    "branch",
+    "narrate",
+    "tts",
+    "text-to-speech",
+    "speak",
+    "piper",
+    "audio",
+    "review",
+    "git",
+    "offline"
+  ]
+}
