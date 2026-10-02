@@ -5,7 +5,7 @@ reconstructed from git history, the diff, and any available tickets, specs, and
 docs, delivered as **text** or **spoken aloud** through a fully **offline**
 Piper text-to-speech engine.
 
-Three skills, one idea: turn dense engineering context into a clear narrative you
+Four skills, one idea: turn dense engineering context into a clear narrative you
 can read or hear.
 
 | Skill | What it does |
@@ -110,8 +110,9 @@ modify branches, tickets, or files.
 
 ## License
 
-GNU General Public License, version 2 **or later** (GPL-2.0-or-later).
-See [`LICENSE`](./LICENSE) for the full text.
+GNU General Public License, version 2 **or later** (`GPL-2.0-or-later`).
+See [`COPYRIGHT`](./COPYRIGHT) for the authorship and "or later" grant, and
+[`LICENSE`](./LICENSE) for the full GPL version 2 text.
 
 Copyright © Renato Vasconcellos Gomes.
 
