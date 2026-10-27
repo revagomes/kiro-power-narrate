@@ -42,11 +42,12 @@ audio** at a brisk pace, plus a short text recap.
 
 3. **Speak it** using the `speak` CLI at a brisk pace.
    NOTE: in `speak`, the `-s` value is a time multiplier where **lower = faster**
-   (0.6 is the default). For a faster, roughly 2× delivery, use `-s 0.4`.
+   (the default is `1.0`, a natural pace). For a brisk narration use `-s 0.8`;
+   for a faster, roughly 1.5–2× delivery use `-s 0.5`.
    Pipe the adapted text via stdin so long content isn't passed as an argument:
 
    ```bash
-   printf '%s' "<speech-adapted summary>" | speak -v us -s 0.4
+   printf '%s' "<speech-adapted summary>" | speak -v us -s 0.8
    ```
 
    Use `-v br` instead if the user asks for Brazilian Portuguese (requires that

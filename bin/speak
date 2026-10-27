@@ -12,25 +12,35 @@
 # Usage:
 #   speak "Hello world"
 #   echo "Hello world" | speak
-#   speak -s 0.4 "Very fast"
+#   speak -s 0.6 "Faster"
 #   speak -v br "Olá mundo"
 #
-# Speed (--length-scale, lower = faster):
-#   1.0 = slow/original, 0.8 = natural, 0.6 = fast (default), 0.4 = very fast
+# Speed (--length-scale; this is a TIME multiplier, lower = faster):
+#   1.0 = natural / original Piper pace (default), 0.8 = brisk,
+#   0.6 = fast, 0.4 = very fast
 #
 # Voices:
 #   us (default) | br  (aliases), or any model filename (without .onnx) that
 #   exists in the voices directory. A voice name may not contain a path
 #   separator or "..": models are always resolved inside the voices directory.
 #
+# Engines: this wrapper supports BOTH Piper command-line interfaces and
+# auto-detects which one is installed:
+#   * legacy standalone binary (rhasspy/piper, v1.2.0): resolved as a `piper`
+#     executable on PATH; takes a full --model <path.onnx> and --output_file.
+#   * new piper1-gpl (OHF-Voice, >=1.3.0): a Python package run as
+#     `python3 -m piper`; resolves a voice NAME via --data-dir, writes with -f,
+#     and requires the text after a `--` separator.
+# Override detection with PIPER_ENGINE=legacy|python.
+#
 # Part of the "narrate" Kiro power. No dependency on any particular project.
-# Shells out to the `piper` binary and plays the result with `aplay`
-# (Linux/ALSA) or `afplay` (macOS).
+# Shells out to Piper and plays the result with `aplay` (Linux/ALSA) or
+# `afplay` (macOS).
 
 set -euo pipefail
 
 VOICES_DIR="${PIPER_VOICES_DIR:-$HOME/.local/share/piper-voices}"
-SPEED="0.6"   # Default: fast pace
+SPEED="1.0"   # Default: natural pace (matches piper1-gpl's length_scale default)
 VOICE="us"
 
 usage() {
@@ -42,17 +52,19 @@ Usage:
   echo "text" | speak [options]
 
 Options:
-  -s, --speed N    Length scale, lower = faster (default 0.6; e.g. 0.4 fast, 1.0 slow)
+  -s, --speed N    Length scale, lower = faster (default 1.0; e.g. 0.6 fast, 1.0 natural)
   -v, --voice NAME Voice alias (us|en, br|pt) or a model filename without .onnx
   -h, --help       Show this help
 
 Voice models live in $PIPER_VOICES_DIR (default ~/.local/share/piper-voices).
+Engine is auto-detected; override with PIPER_ENGINE=legacy|python.
 EOF
     exit "${1:-0}"
 }
 
-# Resolve a voice name/alias to a model path, confined to $VOICES_DIR.
-get_model() {
+# Resolve a voice alias to its canonical model name (no path, no extension),
+# confined to a bare filename. Used by both engines.
+resolve_voice_name() {
     local name="$1"
     case "$name" in
         us|en) name="en_US-amy-medium" ;;
@@ -65,7 +77,7 @@ get_model() {
             exit 2
             ;;
     esac
-    printf '%s/%s.onnx' "$VOICES_DIR" "$name"
+    printf '%s' "$name"
 }
 
 # Validate speed is a non-negative number (integer or decimal).
@@ -97,12 +109,65 @@ if ! valid_speed "$SPEED"; then
     exit 2
 fi
 
-if ! command -v piper >/dev/null 2>&1; then
-    echo "Error: 'piper' not found. Install with: uv tool install piper-tts" >&2
-    exit 127
-fi
+# ---------------------------------------------------------------------------
+# Engine detection.
+#
+# Produces:
+#   ENGINE        : "legacy" or "python"
+#   PIPER_CMD     : array, the base command to invoke Piper
+# ---------------------------------------------------------------------------
+PIPER_CMD=()
+ENGINE=""
 
-MODEL="$(get_model "$VOICE")"
+detect_engine() {
+    # Explicit override wins.
+    case "${PIPER_ENGINE:-}" in
+        legacy)
+            command -v piper >/dev/null 2>&1 || {
+                echo "Error: PIPER_ENGINE=legacy but no 'piper' binary on PATH." >&2; exit 127; }
+            ENGINE="legacy"; PIPER_CMD=(piper); return ;;
+        python)
+            command -v python3 >/dev/null 2>&1 || {
+                echo "Error: PIPER_ENGINE=python but no 'python3' on PATH." >&2; exit 127; }
+            ENGINE="python"; PIPER_CMD=(python3 -m piper); return ;;
+        "") : ;;  # fall through to auto-detection
+        *)  echo "Error: PIPER_ENGINE must be 'legacy' or 'python' (got '$PIPER_ENGINE')." >&2; exit 2 ;;
+    esac
+
+    # Auto-detect. Prefer a `piper` executable, but distinguish the legacy
+    # standalone binary from a pip entry point for piper1-gpl by looking at
+    # its --help: the legacy binary advertises the underscore '--output_file',
+    # the new CLI uses '-f'/'--output-file' and has no '--output_file'.
+    if command -v piper >/dev/null 2>&1; then
+        local help
+        help="$(piper --help 2>&1 || true)"
+        if printf '%s' "$help" | grep -q -- '--output_file'; then
+            ENGINE="legacy"; PIPER_CMD=(piper); return
+        fi
+        # A `piper` entry point that is NOT the legacy binary: treat as the new
+        # CLI (piper1-gpl installs a `piper` console script too).
+        ENGINE="python"; PIPER_CMD=(piper); return
+    fi
+
+    # No `piper` on PATH — try the Python module form of piper1-gpl.
+    if command -v python3 >/dev/null 2>&1 && python3 -c 'import piper' >/dev/null 2>&1; then
+        ENGINE="python"; PIPER_CMD=(python3 -m piper); return
+    fi
+
+    echo "Error: Piper not found. Install one of:" >&2
+    echo "  pip install piper-tts        # piper1-gpl (new CLI)" >&2
+    echo "  uv tool install piper-tts    # same package via uv" >&2
+    echo "  or place the legacy standalone 'piper' binary on your PATH." >&2
+    exit 127
+}
+
+detect_engine
+
+VOICE_NAME="$(resolve_voice_name "$VOICE")"
+MODEL="$VOICES_DIR/$VOICE_NAME.onnx"
+
+# Both engines read the .onnx (and its .json sidecar) from $VOICES_DIR. The
+# legacy binary takes the full path; the new CLI takes the name + --data-dir.
 if [ ! -f "$MODEL" ]; then
     echo "Error: voice model not found: $MODEL" >&2
     echo "Available voices in $VOICES_DIR:" >&2
@@ -114,6 +179,7 @@ if [ ! -f "$MODEL" ]; then
     done
     [ "$found" -eq 1 ] || echo "  (none)" >&2
     echo "Download voices from https://huggingface.co/rhasspy/piper-voices" >&2
+    echo "or, with the new CLI: python3 -m piper.download_voices $VOICE_NAME --data-dir $VOICES_DIR" >&2
     exit 1
 fi
 
@@ -133,13 +199,33 @@ WAVFILE="$TMPFILE.wav"
 cleanup() { rm -f "$TMPFILE" "$WAVFILE"; }
 trap cleanup EXIT
 
-# Synthesize. Text comes from args, or stdin when no args are given.
-# Do not silence piper's errors — a failed synthesis should be visible.
+# Read the text: from positional args, or stdin when no args are given.
 if [ "$#" -gt 0 ]; then
-    printf '%s' "$*" | piper --model "$MODEL" --length-scale "$SPEED" --output_file "$WAVFILE"
+    TEXT="$*"
 else
-    piper --model "$MODEL" --length-scale "$SPEED" --output_file "$WAVFILE"
+    TEXT="$(cat)"
 fi
+
+# Synthesize. Do not silence Piper's errors — a failed synthesis should be
+# visible. --length-scale works identically on both engines.
+case "$ENGINE" in
+    legacy)
+        # Legacy standalone binary: full model path, --output_file, text on stdin.
+        printf '%s' "$TEXT" | "${PIPER_CMD[@]}" \
+            --model "$MODEL" \
+            --length-scale "$SPEED" \
+            --output_file "$WAVFILE"
+        ;;
+    python)
+        # piper1-gpl: voice NAME + --data-dir, -f output, text after `--`.
+        "${PIPER_CMD[@]}" \
+            -m "$VOICE_NAME" \
+            --data-dir "$VOICES_DIR" \
+            --length-scale "$SPEED" \
+            -f "$WAVFILE" \
+            -- "$TEXT"
+        ;;
+esac
 
 # Play. Report a real failure instead of silently "succeeding".
 if ! "${PLAYER[@]}" "$WAVFILE"; then

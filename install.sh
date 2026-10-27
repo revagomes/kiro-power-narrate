@@ -131,8 +131,10 @@ if command -v piper >/dev/null 2>&1; then
     ok "piper found: $(command -v piper)"
 else
     warn "piper not found. Install it with one of:"
+    info "pip install piper-tts        # piper1-gpl (current)"
     info "uv tool install piper-tts"
     info "pipx install piper-tts"
+    info "(the legacy standalone 'piper' binary on PATH also works)"
 fi
 
 # 3. Check an audio player.
