@@ -16,9 +16,10 @@ can read or hear.
 | **explain-branch** | The shared procedure the two explain skills call. Not usually invoked directly. |
 
 The text-to-speech integration is a **self-contained shell CLI** (`bin/speak`)
-that wraps the [`piper`](https://github.com/rhasspy/piper) binary — **not** an
-MCP server. Everything runs locally; no cloud API, no account, no data leaves
-your machine.
+that wraps the [Piper](https://github.com/OHF-Voice/piper1-gpl) engine — **not**
+an MCP server. It supports both the current piper1-gpl CLI and the legacy
+standalone `piper` binary, auto-detecting which is installed. Everything runs
+locally; no cloud API, no account, no data leaves your machine.
 
 ## Install
 
@@ -37,11 +38,17 @@ your machine.
      are available,
    - offer to download a default English voice model if you have none.
 
-3. **Install Piper** if the installer reported it missing:
+3. **Install Piper** if the installer reported it missing. The `speak` CLI
+   supports **both** Piper engines and auto-detects which one is present:
 
    ```bash
-   uv tool install piper-tts      # or: pipx install piper-tts
+   pip install piper-tts          # piper1-gpl (OHF-Voice, current) — new CLI
+   # or: uv tool install piper-tts / pipx install piper-tts
    ```
+
+   The legacy standalone `piper` binary (rhasspy/piper ≤ 1.2.0) also works if
+   you already have it on your `PATH`; override detection with
+   `PIPER_ENGINE=legacy` or `PIPER_ENGINE=python`.
 
 4. **Verify:**
 
@@ -71,12 +78,12 @@ a short recap.
 ### Read arbitrary text aloud
 
 ```bash
-printf '%s' "Your text here" | speak        # default English, fast
-speak -v br -s 0.8 "Olá, tudo bem?"         # Brazilian Portuguese, natural pace
+printf '%s' "Your text here" | speak        # default English, natural pace
+speak -v br -s 0.6 "Olá, tudo bem?"         # Brazilian Portuguese, faster
 ```
 
-Speed is a time multiplier where **lower = faster**: `1.0` slow, `0.8` natural,
-`0.6` fast (default), `0.4` very fast.
+Speed is a time multiplier where **lower = faster**: `1.0` natural (default),
+`0.8` brisk, `0.6` fast, `0.4` very fast.
 
 ## Voices
 
@@ -84,7 +91,7 @@ Models live in `~/.local/share/piper-voices/` (override with `PIPER_VOICES_DIR`)
 Built-in aliases: `us`/`en` → `en_US-amy-medium`, `br`/`pt` → `pt_BR-faber-medium`.
 Download more from the [Piper voices repository](https://huggingface.co/rhasspy/piper-voices)
 and reference them by filename (without the `.onnx` extension), or add an alias
-in `get_model()` inside `bin/speak`.
+in `resolve_voice_name()` inside `bin/speak`.
 
 ## Issue-tracker enrichment (optional)
 
@@ -97,7 +104,9 @@ using a generic pattern (`PROJ-123` or `#123`). No tracker is required.
 ## Requirements
 
 - **Linux or macOS** with a shell
-- **`piper`** (`uv tool install piper-tts`)
+- **`piper`** — either [piper1-gpl](https://github.com/OHF-Voice/piper1-gpl)
+  (`pip install piper-tts`) or the legacy standalone `piper` binary; `speak`
+  auto-detects which is installed
 - **`aplay`** (Linux/ALSA) or **`afplay`** (macOS, built in)
 - **`git`** (for the explain skills)
 - At least one Piper voice model

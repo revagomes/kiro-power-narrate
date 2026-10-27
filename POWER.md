@@ -29,14 +29,16 @@ procedure the two explain skills call.
   data leaves the machine.
 
 The TTS integration is a self-contained shell CLI (`bin/speak`) that wraps the
-`piper` binary — **not** an MCP server. This keeps the power dependency-light
-and portable: install one script, download a voice model, done.
+`piper` engine — **not** an MCP server. It supports both the current piper1-gpl
+CLI and the legacy standalone binary, auto-detecting which is installed. This
+keeps the power dependency-light and portable: install one script, download a
+voice model, done.
 
 ## Prerequisites
 
 | Requirement | Notes |
 |-------------|-------|
-| **`piper`** | The Piper TTS engine. Install with `uv tool install piper-tts` (or `pipx install piper-tts`). |
+| **`piper`** | The Piper TTS engine. Install the current [piper1-gpl](https://github.com/OHF-Voice/piper1-gpl) with `pip install piper-tts` (or `uv tool install piper-tts` / `pipx install piper-tts`). The legacy standalone `piper` binary also works; `speak` auto-detects which engine is present. |
 | **`aplay`** | Audio playback (ALSA, pre-installed on most Linux systems). On macOS the installer falls back to `afplay`. |
 | **At least one voice model** | A `.onnx` + `.onnx.json` pair under `~/.local/share/piper-voices/`. The installer can fetch a default English voice for you. |
 | **git** | Required for the explain / explain-audio skills. |

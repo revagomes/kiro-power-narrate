@@ -49,7 +49,7 @@ from the power directory first.
 
 ## Usage
 
-### Basic (English, fast pace)
+### Basic (English, natural pace)
 
 ```bash
 speak "Your text here"
@@ -74,16 +74,16 @@ speak -v br "Olá, tudo bem?"    # Brazilian Portuguese (if that model is instal
 ### Speed control (lower = faster)
 
 ```bash
-speak -s 1.0 "Slow, original Piper pace"
-speak -s 0.8 "Natural pace"
-speak -s 0.6 "Fast (default)"
+speak -s 1.0 "Natural, original Piper pace (default)"
+speak -s 0.8 "Brisk"
+speak -s 0.6 "Fast"
 speak -s 0.4 "Very fast"
 ```
 
 ### Combined
 
 ```bash
-speak -v br -s 0.8 "Português mais devagar"
+speak -v br -s 0.8 "Português, ritmo mais ligeiro"
 ```
 
 ## Voice Aliases
@@ -119,7 +119,7 @@ sha256sum "$V.onnx"   # or: shasum -a 256 "$V.onnx"
 
 A model is loaded by a native inference engine, so only install voices whose
 checksum you have verified. Then reference the voice by its filename, or add an
-alias in the `get_model()` function in `~/.local/bin/speak`.
+alias in the `resolve_voice_name()` function in `~/.local/bin/speak`.
 Browse voices: https://huggingface.co/rhasspy/piper-voices
 
 ## Best Practices for AI Agents
@@ -142,13 +142,17 @@ Browse voices: https://huggingface.co/rhasspy/piper-voices
 
 ## Dependencies
 
-- `piper` (install via `uv tool install piper-tts`)
+- `piper` — either [piper1-gpl](https://github.com/OHF-Voice/piper1-gpl)
+  (`pip install piper-tts`) or the legacy standalone `piper` binary; the `speak`
+  CLI auto-detects which one is installed (override with
+  `PIPER_ENGINE=legacy|python`)
 - An audio player: `aplay` (Linux/ALSA) or `afplay` (macOS)
 - At least one voice model in `~/.local/share/piper-voices/`
 
 ## Troubleshooting
 
-- **"piper not found"**: install it with `uv tool install piper-tts`
+- **"piper not found"**: install it with `pip install piper-tts` (or
+  `uv tool install piper-tts`), or put the legacy standalone `piper` binary on PATH
 - **"voice model not found"**: download a model (see above) or run `install.sh`
 - **No sound**: check `aplay -l` for available audio devices
 - **Too slow/fast**: adjust the `-s` flag (lower = faster)
