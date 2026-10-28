@@ -1,12 +1,12 @@
 #!/bin/bash
 # speak - Convert text to speech using Piper TTS (neural, high quality, offline)
 #
-# SPDX-License-Identifier: GPL-2.0-or-later
+# SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Renato Vasconcellos Gomes
 #
 # This program is free software: you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
-# Foundation, either version 2 of the License, or (at your option) any later
+# Foundation, either version 3 of the License, or (at your option) any later
 # version. See the LICENSE file for the full text.
 #
 # Usage:
@@ -134,24 +134,36 @@ detect_engine() {
         *)  echo "Error: PIPER_ENGINE must be 'legacy' or 'python' (got '$PIPER_ENGINE')." >&2; exit 2 ;;
     esac
 
-    # Auto-detect. Prefer a `piper` executable, but distinguish the legacy
-    # standalone binary from a pip entry point for piper1-gpl by looking at
-    # its --help: the legacy binary advertises the underscore '--output_file',
-    # the new CLI uses '-f'/'--output-file' and has no '--output_file'.
-    if command -v piper >/dev/null 2>&1; then
-        local help
-        help="$(piper --help 2>&1 || true)"
-        if printf '%s' "$help" | grep -q -- '--output_file'; then
-            ENGINE="legacy"; PIPER_CMD=(piper); return
+    # Auto-detect. The two engines have CONVERGED on flags (piper1-gpl >=1.8.0
+    # accepts a model path, both --output_file and --output-file, and reads
+    # stdin), so we cannot tell them apart by a single flag token. Instead,
+    # positively identify piper1-gpl — it is a Python package — and treat
+    # anything else that is only a `piper` binary as the legacy standalone.
+    #
+    #   * piper1-gpl: `import piper` succeeds AND/OR its --help advertises
+    #     `--data-dir` (the voice-name resolver the legacy binary never had).
+    #   * legacy 1.2.0: a compiled `piper` binary, no importable module,
+    #     no `--data-dir` in help.
+
+    # 1. If the piper1-gpl module is importable, prefer it. Use the `piper`
+    #    console script when present (it is that package's own entry point),
+    #    else the module form.
+    if command -v python3 >/dev/null 2>&1 && python3 -c 'import piper' >/dev/null 2>&1; then
+        if command -v piper >/dev/null 2>&1 && piper --help 2>&1 | grep -q -- '--data-dir'; then
+            ENGINE="python"; PIPER_CMD=(piper); return
         fi
-        # A `piper` entry point that is NOT the legacy binary: treat as the new
-        # CLI (piper1-gpl installs a `piper` console script too).
-        ENGINE="python"; PIPER_CMD=(piper); return
+        ENGINE="python"; PIPER_CMD=(python3 -m piper); return
     fi
 
-    # No `piper` on PATH — try the Python module form of piper1-gpl.
-    if command -v python3 >/dev/null 2>&1 && python3 -c 'import piper' >/dev/null 2>&1; then
-        ENGINE="python"; PIPER_CMD=(python3 -m piper); return
+    # 2. A `piper` binary whose help advertises --data-dir is piper1-gpl even if
+    #    its module is not importable from this python3 (e.g. installed via uv in
+    #    a separate environment that still exposes the console script).
+    if command -v piper >/dev/null 2>&1; then
+        if piper --help 2>&1 | grep -q -- '--data-dir'; then
+            ENGINE="python"; PIPER_CMD=(piper); return
+        fi
+        # No --data-dir: the legacy standalone binary.
+        ENGINE="legacy"; PIPER_CMD=(piper); return
     fi
 
     echo "Error: Piper not found. Install one of:" >&2
