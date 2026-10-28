@@ -2,11 +2,11 @@ narrate — a Kiro power for explaining git branches as text or spoken audio.
 
 Copyright (C) 2026 Renato Vasconcellos Gomes
 
-SPDX-License-Identifier: GPL-2.0-or-later
+SPDX-License-Identifier: GPL-3.0-or-later
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 2 of the License, or (at your option) any later
+Foundation, either version 3 of the License, or (at your option) any later
 version.
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY
@@ -16,7 +16,7 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program; if not, see <https://www.gnu.org/licenses/>.
 
-The full text of the GNU General Public License, version 2, is in the LICENSE
+The full text of the GNU General Public License, version 3, is in the LICENSE
 file in this repository. The "or later" option above is the author's grant: you
-may use this software under GPL version 2, or any later version published by the
+may use this software under GPL version 3, or any later version published by the
 Free Software Foundation.
