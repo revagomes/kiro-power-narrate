@@ -1,5 +1,5 @@
 {
-  "$schema": "https://agent-plugins.org/schema/1.0.0/plugin.json",
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "narrate",
   "version": "1.0.0",
   "description": "Explain a git feature branch's full story (why/what/how) as text or spoken aloud via a local, offline Piper text-to-speech engine. Includes general-purpose local TTS.",
