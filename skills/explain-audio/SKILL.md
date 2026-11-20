@@ -47,8 +47,11 @@ audio** at a brisk pace, plus a short text recap.
    Pipe the adapted text via stdin so long content isn't passed as an argument:
 
    ```bash
-   printf '%s' "<speech-adapted summary>" | speak -v us -s 0.8
+   printf '%s' "<speech-adapted summary>" | speak -s 0.8
    ```
+
+   Do not pass `-v`: the voice comes from the user's configured default
+   (`SPEAK_VOICE` or `~/.config/speak/config`), falling back to `us`.
 
    Use `-v br` instead if the user asks for Brazilian Portuguese (requires that
    voice model to be installed).
