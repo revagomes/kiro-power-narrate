@@ -93,6 +93,23 @@ Download more from the [Piper voices repository](https://huggingface.co/rhasspy/
 and reference them by filename (without the `.onnx` extension), or add an alias
 in `resolve_voice_name()` inside `bin/speak`.
 
+### Changing the defaults
+
+The built-in defaults (voice `us`, speed `1.0`) can be overridden without editing
+the script. Precedence, highest first: **flags → env vars → config file → built-ins**.
+
+```bash
+# Per call / per shell
+SPEAK_VOICE=en_US-lessac-high SPEAK_SPEED=0.9 speak "Hello"
+
+# Persistently: ~/.config/speak/config  (or the path in $SPEAK_CONFIG)
+mkdir -p ~/.config/speak
+printf 'voice=en_US-lessac-high\nspeed=0.9\n' > ~/.config/speak/config
+```
+
+The config file is plain `key=value` lines (`voice`, `speed`; `#` comments).
+It is parsed, never sourced, and values go through the same validation as flags.
+
 ## Issue-tracker enrichment (optional)
 
 The explain skills work from git history alone. If an issue-tracker MCP
