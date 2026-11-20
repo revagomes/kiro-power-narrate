@@ -15,6 +15,10 @@
 #   speak -s 0.6 "Faster"
 #   speak -v br "Olá mundo"
 #
+# Overriding defaults (precedence: flags > env > config file > built-ins):
+#   SPEAK_VOICE=en_US-lessac-high SPEAK_SPEED=0.9 speak "Hello"
+#   ~/.config/speak/config  (key=value lines: voice=..., speed=...)
+#
 # Speed (--length-scale; this is a TIME multiplier, lower = faster):
 #   1.0 = natural / original Piper pace (default), 0.8 = brisk,
 #   0.6 = fast, 0.4 = very fast
@@ -43,6 +47,35 @@ VOICES_DIR="${PIPER_VOICES_DIR:-$HOME/.local/share/piper-voices}"
 SPEED="1.0"   # Default: natural pace (matches piper1-gpl's length_scale default)
 VOICE="us"
 
+# Defaults can be overridden without touching the script. Precedence, highest
+# first:  command-line flags  >  SPEAK_VOICE / SPEAK_SPEED env vars  >
+#         config file  >  the built-in defaults above.
+#
+# Config file: ${SPEAK_CONFIG:-${XDG_CONFIG_HOME:-~/.config}/speak/config}
+# Plain `key=value` lines (keys: voice, speed); `#` starts a comment. It is
+# parsed, never sourced, so it cannot execute code. Unknown keys are ignored.
+load_config() {
+    local cfg="${SPEAK_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/speak/config}"
+    local key value
+    [ -f "$cfg" ] || return 0
+    while IFS='=' read -r key value || [ -n "$key" ]; do
+        key="${key//[[:space:]]/}"
+        case "$key" in ''|\#*) continue ;; esac
+        value="${value%%#*}"                      # strip trailing comment
+        value="${value#"${value%%[![:space:]]*}"}"   # trim leading space
+        value="${value%"${value##*[![:space:]]}"}"   # trim trailing space
+        value="${value#[\"\']}"; value="${value%[\"\']}"  # strip one pair of quotes
+        case "$key" in
+            voice) [ -n "$value" ] && VOICE="$value" ;;
+            speed) [ -n "$value" ] && SPEED="$value" ;;
+        esac
+    done < "$cfg" || true
+}
+
+load_config
+VOICE="${SPEAK_VOICE:-$VOICE}"
+SPEED="${SPEAK_SPEED:-$SPEED}"
+
 usage() {
     cat >&2 <<'EOF'
 speak - local, offline text-to-speech via Piper
@@ -58,6 +91,12 @@ Options:
 
 Voice models live in $PIPER_VOICES_DIR (default ~/.local/share/piper-voices).
 Engine is auto-detected; override with PIPER_ENGINE=legacy|python.
+
+Defaults (voice "us", speed 1.0) can be changed. Precedence, highest first:
+  flags > SPEAK_VOICE / SPEAK_SPEED env vars > config file > built-in defaults
+Config file: ${SPEAK_CONFIG:-~/.config/speak/config}, plain key=value lines:
+  voice=en_US-lessac-high
+  speed=0.9
 EOF
     exit "${1:-0}"
 }
