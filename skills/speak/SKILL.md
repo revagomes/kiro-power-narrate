@@ -97,6 +97,13 @@ You can also pass any model filename (without the `.onnx` extension) that exists
 in `~/.local/share/piper-voices/` (override the directory with
 `PIPER_VOICES_DIR`).
 
+## Changing the Defaults
+
+The user may have set their own default voice/speed, so do **not** pass `-v`/`-s`
+unless the user asks for a specific one — the defaults are resolved as
+flags > `SPEAK_VOICE`/`SPEAK_SPEED` env vars > `~/.config/speak/config`
+(`voice=...`, `speed=...`, or the path in `$SPEAK_CONFIG`) > built-ins.
+
 ## Adding New Voices
 
 The bundled installer (`install.sh`) can fetch the `en` and `pt` voices,
