@@ -94,7 +94,7 @@ Engine is auto-detected; override with PIPER_ENGINE=legacy|python.
 
 Defaults (voice "us", speed 1.0) can be changed. Precedence, highest first:
   flags > SPEAK_VOICE / SPEAK_SPEED env vars > config file > built-in defaults
-Config file: ${SPEAK_CONFIG:-~/.config/speak/config}, plain key=value lines:
+Config file: ${SPEAK_CONFIG:-${XDG_CONFIG_HOME:-~/.config}/speak/config}, plain key=value lines:
   voice=en_US-lessac-high
   speed=0.9
 EOF

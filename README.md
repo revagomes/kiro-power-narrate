@@ -102,9 +102,10 @@ the script. Precedence, highest first: **flags → env vars → config file → 
 # Per call / per shell
 SPEAK_VOICE=en_US-lessac-high SPEAK_SPEED=0.9 speak "Hello"
 
-# Persistently: ~/.config/speak/config  (or the path in $SPEAK_CONFIG)
-mkdir -p ~/.config/speak
-printf 'voice=en_US-lessac-high\nspeed=0.9\n' > ~/.config/speak/config
+# Persistently: ${XDG_CONFIG_HOME:-~/.config}/speak/config  (or the path in $SPEAK_CONFIG)
+cfg="${SPEAK_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/speak/config}"
+mkdir -p "$(dirname "$cfg")"
+printf 'voice=en_US-lessac-high\nspeed=0.9\n' > "$cfg"
 ```
 
 The config file is plain `key=value` lines (`voice`, `speed`; `#` comments).
